@@ -9,6 +9,8 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +23,7 @@ public class Vendor implements Runnable {
     private TicketPool ticketPool;
 
     @Autowired
-    private TicketConfig config; // Correctly autowire TicketConfig
+    private TicketConfig config;
 
     private int ticketsPerRelease;
     private int releaseInterval;
@@ -43,29 +45,30 @@ public class Vendor implements Runnable {
 
     @Override
     public void run() {
-        LoggingUtil.log(name + " run method started.");
-        LoggingUtil.log(name + " config.getTotalTickets(): " + config.getTotalTickets()); // Log config values
-        LoggingUtil.log(name + " ticketsPerRelease: " + ticketsPerRelease);
-        LoggingUtil.log(name + " releaseInterval: " + releaseInterval);
-
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 List<Ticket> newTickets = new ArrayList<>();
                 for (int i = 0; i < ticketsPerRelease; i++) {
-                    newTickets.add(new Ticket("Event", 50.00));
+                    if (ticketPool.getTotalTicketsCreated() < config.getTotalTickets()) {
+                        newTickets.add(new Ticket("Event", 50.00));
+                    } else {
+                        break; // Stop adding tickets if total limit is reached
+                    }
                 }
 
-                if (ticketPool.addTickets(newTickets)) {
-                    LoggingUtil.log(name + " added " + newTickets.size() + " tickets. Pool size: " + ticketPool.getSize());
-                } else {
-                    LoggingUtil.log(name + ": Maximum ticket limit reached. Not adding more tickets.");
-                    break;
+                if (!newTickets.isEmpty()) {
+                    if (ticketPool.addTickets(newTickets)) {
+                        LoggingUtil.log(formatter.format(LocalDateTime.now()) + " - " + name + " added " + newTickets.size() + " tickets. (Total in pool: " + ticketPool.getSize() + ")");
+                    } else {
+                        LoggingUtil.log(formatter.format(LocalDateTime.now()) + " - " + name + ": Maximum ticket capacity reached. Not adding more tickets.");
+                    }
                 }
 
                 Thread.sleep(releaseInterval);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LoggingUtil.logError(name + " interrupted.", e);
+                LoggingUtil.logError(formatter.format(LocalDateTime.now()) + " - " + name + " interrupted.", e);
                 break;
             }
         }

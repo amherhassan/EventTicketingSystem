@@ -8,51 +8,46 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
-/**
- * Represents a customer trying to purchase tickets.
- */
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 @Service
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class Customer implements Runnable {
     private String name;
+
     @Autowired
     private TicketPool ticketPool;
+
     private int retrievalInterval;
 
-    /**
-     * Default constructor for the Customer.
-     */
     public Customer() {
     }
-
 
     public void setName(String name) {
         this.name = name;
     }
 
-
     public void setRetrievalInterval(int retrievalInterval) {
         this.retrievalInterval = retrievalInterval;
     }
 
-    /**
-     * Customer's run method, which continuously attempts to purchase tickets.
-     */
     @Override
     public void run() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 Ticket ticket = ticketPool.removeTicket();
                 if (ticket != null) {
-                    LoggingUtil.log(name + " purchased ticket " + ticket.getId() + ". Pool size: " + ticketPool.getSize());
+                    LoggingUtil.log(formatter.format(LocalDateTime.now()) + " - " + name + " retrieved a ticket. (Total in pool: " + ticketPool.getSize() + ")");
                 } else {
-                    LoggingUtil.log(name + " couldn't get a ticket. Pool is empty.");
+                    LoggingUtil.logWarning(formatter.format(LocalDateTime.now()) + " - " + name + " attempted to retrieve a ticket but the pool is empty.");
                 }
 
                 Thread.sleep(retrievalInterval);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LoggingUtil.logError(name + " interrupted.", e);
+                LoggingUtil.logError(formatter.format(LocalDateTime.now()) + " - " + name + " interrupted.", e);
                 break;
             }
         }

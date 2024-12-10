@@ -2,54 +2,57 @@ package com.example.eventticketingsystem.repository;
 
 import com.example.eventticketingsystem.configuration.TicketConfig;
 import com.example.eventticketingsystem.model.Ticket;
+import com.example.eventticketingsystem.util.LoggingUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * Thread-safe repository for managing the pool of available tickets.
- */
 @Repository
 public class TicketPool {
+    private final ReentrantLock lock = new ReentrantLock(true);
+
     private int totalTicketsCreated = 0;
     private final List<Ticket> tickets = Collections.synchronizedList(new ArrayList<>());
 
     @Autowired
     private TicketConfig config;
 
-    /**
-     * Adds new tickets to the pool, up to the total ticket limit.
-     * @param newTickets The list of new tickets to add.
-     * @return True if the tickets were added, false if the total ticket limit was reached.
-     */
-    public synchronized boolean addTickets(List<Ticket> newTickets) {
-        if (totalTicketsCreated + newTickets.size() <= config.getTotalTickets()) {
+    public  boolean addTickets(List<Ticket> newTickets) {
+        lock.lock();
+        if (tickets.size() + newTickets.size() <= config.getMaxTicketCapacity()) {
             tickets.addAll(newTickets);
             totalTicketsCreated += newTickets.size();
+            lock.unlock();
             return true;
         } else {
+            LoggingUtil.log("Maximum ticket capacity reached. Not adding more tickets.");
+            lock.unlock();
             return false;
+
+
         }
     }
 
-    /**
-     * Removes and returns a ticket from the pool.
-     * Returns null if the pool is empty.
-     */
-    public synchronized Ticket removeTicket() {
+    public  Ticket removeTicket() {
+        lock.lock();
         if (!tickets.isEmpty()) {
+            lock.unlock();
             return tickets.remove(0);
+
         }
+        lock.unlock();
         return null;
     }
 
-    /**
-     * Gets the current number of tickets in the pool.
-     */
-    public int getSize() {
+    public synchronized int getSize() {
         return tickets.size();
+    }
+
+    public synchronized int getTotalTicketsCreated() {
+        return totalTicketsCreated;
     }
 }

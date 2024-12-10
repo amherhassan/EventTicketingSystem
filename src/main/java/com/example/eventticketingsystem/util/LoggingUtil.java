@@ -1,26 +1,22 @@
-
 package com.example.eventticketingsystem.util;
 
-/**
- * Utility class for logging messages.
- */
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class LoggingUtil {
 
-    /**
-     * Logs a message with the current thread's name.
-     * @param message The message to log.
-     */
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     public static void log(String message) {
-        System.out.println(Thread.currentThread().getName() + ": " + message);
+        System.out.println("[INFO] " + formatter.format(LocalDateTime.now()) + " - " + message);
     }
 
-    /**
-     * Logs an error message with the current thread's name and exception details.
-     * @param message The error message.
-     * @param e The exception that occurred.
-     */
+    public static void logWarning(String message) {
+        System.out.println("[WARNING] " + formatter.format(LocalDateTime.now()) + " - " + message);
+    }
+
     public static void logError(String message, Exception e) {
-        System.err.println(Thread.currentThread().getName() + ": ERROR - " + message);
+        System.err.println("[ERROR] " + formatter.format(LocalDateTime.now()) + " - " + message);
         e.printStackTrace();
     }
 }

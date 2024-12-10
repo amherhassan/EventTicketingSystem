@@ -16,9 +16,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Controller for managing the event simulation.
- */
 @RestController
 @RequestMapping("/api/event")
 public class EventController {
@@ -38,22 +35,35 @@ public class EventController {
      */
     @PostMapping("/start")
     public ResponseEntity<String> startSimulation() {
-        executorService = Executors.newFixedThreadPool(8);
-        activeThreads.clear();
-
-        for (int i = 0; i < 3; i++) {  // Create 3 vendors
-            Vendor vendor = context.getBean(Vendor.class);
-            vendor.setName("Vendor-" + (i + 1));
-            vendor.setTicketsPerRelease(config.getTicketReleaseRate());
-            vendor.setReleaseInterval(500);
-            startThread(vendor);
+        // Shutdown existing executor service if it exists
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+            try {
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("Executor service did not shut down in time.");
+                }
+            } catch (InterruptedException e) {
+                System.err.println("Interrupted while waiting for executor service shutdown.");
+                Thread.currentThread().interrupt();
+            }
+            activeThreads.clear();
         }
 
-        for (int i = 0; i < 5; i++) {  // Create 5 customers
+        executorService = Executors.newFixedThreadPool(8);
+
+        for (int i = 0; i < 2; i++) {  // Create 2 vendors
+            Vendor vendor = context.getBean(Vendor.class);
+            vendor.setName("Vendor-" + (i + 1));
+            vendor.setTicketsPerRelease(5);
+            vendor.setReleaseInterval(1000 * config.getTicketReleaseRate()); // Calculate interval for rate/second
+            startThread(vendor, "Vendor-" + (i + 1));
+        }
+
+        for (int i = 0; i < 1; i++) {  // Create 1 customers
             Customer customer = context.getBean(Customer.class);
             customer.setName("Customer-" + (i + 1));
-            customer.setRetrievalInterval(config.getCustomerRetrievalRate());
-            startThread(customer);
+            customer.setRetrievalInterval(1000 * config.getCustomerRetrievalRate()); // Calculate interval for rate/second
+            startThread(customer, "Customer-" + (i + 1));
         }
 
         return ResponseEntity.ok("Simulation started.");
@@ -62,9 +72,10 @@ public class EventController {
     /**
      * Starts a new thread for the given runnable.
      * @param runnable The task to run in the thread.
+     * @param threadName The name of the thread.
      */
-    private void startThread(Runnable runnable) {
-        Thread thread = new Thread(runnable);
+    private void startThread(Runnable runnable, String threadName) {
+        Thread thread = new Thread(runnable, threadName);
         activeThreads.add(thread);
         thread.start();
     }
